@@ -1,4 +1,3 @@
-// src/controllers/checkoutController.js
 const pool = require('../config/database');
 const { reserveStock } = require('../services/inventoryService');
 const { MercadoPagoConfig, Payment } = require('mercadopago');
@@ -49,7 +48,7 @@ async function handleCheckout(req, res) {
       }
     }
 
-    // 1. Regista o pedido no banco
+    // 1. Cria o pedido estritamente com status 'pending'
     const orderResult = await pool.query(
       `INSERT INTO orders (user_id, batch_id, total_amount, status, expires_at) 
        VALUES ($1, $2, $3, 'pending', $4) RETURNING *`,
@@ -57,7 +56,6 @@ async function handleCheckout(req, res) {
     );
     const order = orderResult.rows[0];
 
-    // 2. Cria cobrança PIX no Mercado Pago (se o token estiver configurado)
     let qrCodeBase64 = null;
     let qrCodeCopiaECola = null;
     let paymentProviderId = null;
@@ -90,7 +88,7 @@ async function handleCheckout(req, res) {
           [paymentProviderId, order.id]
         );
       } catch (mpErr) {
-        console.error('Erro na API Mercado Pago:', mpErr);
+        console.error('Erro Mercado Pago:', mpErr);
       }
     }
 
@@ -101,7 +99,7 @@ async function handleCheckout(req, res) {
       expiresAt: expiresAt,
       paymentProviderId: paymentProviderId,
       qrCodeBase64: qrCodeBase64,
-      qrCodeCopiaECola: qrCodeCopiaECola
+      qrCodeCopiaECola: qrCodeCopiaECola || order.id
     });
 
   } catch (err) {
