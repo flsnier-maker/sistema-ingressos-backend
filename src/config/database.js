@@ -1,14 +1,14 @@
 const { Pool } = require('pg');
 
+// Detecta se está rodando na nuvem com DATABASE_URL
+const isProduction = process.env.DATABASE_URL ? true : false;
+
 const pool = new Pool({
-  host: process.env.DB_HOST || 'localhost',
-  port: process.env.DB_PORT || 5432,
-  user: process.env.DB_USER || 'postgres',
-  password: process.env.DB_PASSWORD || '1234',
-  database: process.env.DB_NAME || 'sistema_ingressos',
-  max: 20, // Máximo de conexões simultâneas no pool
+  connectionString: process.env.DATABASE_URL || `postgres://${process.env.DB_USER || 'postgres'}:${process.env.DB_PASSWORD || '1234'}@${process.env.DB_HOST || 'localhost'}:${process.env.DB_PORT || 5432}/${process.env.DB_NAME || 'sistema_ingressos'}`,
+  ssl: isProduction ? { rejectUnauthorized: false } : false, // Requerido para o Neon na nuvem
+  max: 20,
   idleTimeoutMillis: 30000,
-  connectionTimeoutMillis: 2000,
+  connectionTimeoutMillis: 5000,
 });
 
 pool.on('connect', () => {
