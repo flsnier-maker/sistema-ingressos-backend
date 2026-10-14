@@ -84,41 +84,40 @@
     let quantidade = 1;
 
     async function carregarLotesDisponiveis() {
-      try {
-        const res = await fetch('/api/admin/metrics');
-        const data = await res.json();
-        const container = document.getElementById('container-lotes');
-        
-        if (!data.events || data.events.length === 0) {
-          container.innerHTML = '<div class="p-6 bg-slate-900 border border-slate-800 rounded-2xl text-slate-400">Nenhum show ou lote publicado ainda. Acesse o Painel Admin.</div>';
-          return;
-        }
+  try {
+    const res = await fetch('/api/admin/metrics');
+    const data = await res.json();
+    const container = document.getElementById('container-lotes');
 
-        // Pega o ID do último lote configurado no servidor (UUID do lote que foi criado no terminal/admin)
-        // Como o terminal gerou o UUID do lote: 4c0729cb-4cef-462b-877f-dcf590156267
-        loteSelecionadoId = "4c0729cb-4cef-462b-877f-dcf590156267";
-        precoUnitario = 100.00;
-
-        container.innerHTML = `
-          <div class="bg-slate-900 border border-indigo-500/50 rounded-2xl p-6 flex items-center justify-between">
-            <div>
-              <h3 class="text-xl font-bold text-white">Ingresso Individual - Lote Ativo</h3>
-              <p class="text-sm text-slate-400 mt-1">Acesso garantido com QR Code seguro.</p>
-              <span class="text-2xl font-extrabold text-indigo-400 mt-2 block">R$ 100,00</span>
-            </div>
-            <div class="flex items-center space-x-3 bg-slate-800 rounded-lg p-2">
-              <button type="button" onclick="alterarQtd(-1)" class="w-8 h-8 rounded-md bg-slate-700 hover:bg-slate-600 font-bold">-</button>
-              <span id="qtd-ingresso" class="font-bold text-lg w-6 text-center">1</span>
-              <button type="button" onclick="alterarQtd(1)" class="w-8 h-8 rounded-md bg-slate-700 hover:bg-slate-600 font-bold">+</button>
-            </div>
-          </div>
-        `;
-
-        atualizarTotal();
-      } catch (err) {
-        console.error('Erro ao carregar lotes:', err);
-      }
+    if (!data.batches || data.batches.length === 0) {
+      container.innerHTML = '<div class="p-6 bg-slate-900 border border-slate-800 rounded-2xl text-slate-400">Nenhum lote publicado ainda. Acesse o Painel Admin.</div>';
+      return;
     }
+
+    // Pega automaticamente o último lote criado no Admin
+    const loteAtivo = data.batches[0];
+    loteSelecionadoId = loteAtivo.id;
+    precoUnitario = parseFloat(loteAtivo.price);
+
+    container.innerHTML = `
+      <div class="bg-slate-900 border border-indigo-500/50 rounded-2xl p-6 flex items-center justify-between">
+        <div>
+          <h3 class="text-xl font-bold text-white">${loteAtivo.name}</h3>
+          <p class="text-sm text-slate-400 mt-1">Acesso garantido com QR Code seguro.</p>
+          <span class="text-2xl font-extrabold text-indigo-400 mt-2 block">R$ ${precoUnitario.toFixed(2).replace('.', ',')}</span>
+        </div>
+        <div class="flex items-center space-x-3 bg-slate-800 rounded-lg p-2">
+          <button type="button" onclick="alterarQtd(-1)" class="w-8 h-8 rounded-md bg-slate-700 hover:bg-slate-600 font-bold">-</button>
+          <span id="qtd-ingresso" class="font-bold text-lg w-6 text-center">1</span>
+          <button type="button" onclick="alterarQtd(1)" class="w-8 h-8 rounded-md bg-slate-700 hover:bg-slate-600 font-bold">+</button>
+        </div>
+      </div>
+    `;
+    atualizarTotal();
+  } catch (err) {
+    console.error('Erro ao carregar lotes:', err);
+  }
+}
 
     function alterarQtd(delta) {
       quantidade = Math.max(1, quantidade + delta);
