@@ -11,18 +11,24 @@ const { createEvent, createBatch, updateBatch, deleteBatch, deleteEvent, getAdmi
 const app = express();
 app.use(express.json());
 
-// Garante que o Render encontra a pasta public, esteja em src/public ou na raiz public
+// Desativa o cache de arquivos estáticos no servidor
+app.use((req, res, next) => {
+  res.set('Cache-Control', 'no-store, no-cache, must-revalidate, private');
+  next();
+});
+
+// Serve os arquivos da pasta public
 app.use(express.static(path.join(__dirname, 'public')));
 app.use(express.static(path.join(__dirname, '../public')));
 
 const server = http.createServer(app);
 initSocket(server);
 
-// Rotas da API Checkout e Webhook
+// Rota de Checkout que responde com a URL de Pagamento
 app.post('/api/checkout', handleCheckout);
 app.post('/api/webhooks/payment', handlePaymentWebhook);
 
-// Rota para verificar status do pedido na tela de pagamento
+// Status do pedido para a tela de pagamento
 app.get('/api/orders/:id', async (req, res) => {
   try {
     const result = await pool.query('SELECT status FROM orders WHERE id = $1', [req.params.id]);
@@ -36,7 +42,7 @@ app.get('/api/orders/:id', async (req, res) => {
   }
 });
 
-// Rotas do Painel Admin
+// Admin APIs
 app.get('/api/admin/metrics', getAdminMetrics);
 app.post('/api/admin/events', createEvent);
 app.delete('/api/admin/events/:id', deleteEvent);
