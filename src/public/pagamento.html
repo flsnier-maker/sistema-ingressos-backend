@@ -60,11 +60,13 @@
     document.getElementById('pix-valor').innerText = `R$ ${parseFloat(amount).toFixed(2).replace('.', ',')}`;
 
     // Gerar QR Code PIX na tela
-    new QRCode(document.getElementById('qrcode-pix'), {
-      text: copiaECola,
-      width: 180,
-      height: 180
-    });
+    if (document.getElementById('qrcode-pix')) {
+      new QRCode(document.getElementById('qrcode-pix'), {
+        text: copiaECola || 'https://pix.exemplo.com',
+        width: 180,
+        height: 180
+      });
+    }
 
     function copiarPix() {
       navigator.clipboard.writeText(copiaECola);
@@ -89,9 +91,10 @@
       tempoRestante--;
     }, 1000);
 
-    // Consulta automática do status a cada 3 segundos
+    // Polling a cada 3s verificando se foi pago
     const checkStatus = setInterval(async () => {
       try {
+        if (!orderId) return;
         const res = await fetch(`/api/orders/${orderId}`);
         if (res.ok) {
           const data = await res.json();
@@ -105,6 +108,10 @@
     }, 3000);
 
     async function simularAprovacao() {
+      if (!orderId) {
+        alert('Erro: sem ID de pedido para simular.');
+        return;
+      }
       await fetch('/api/webhooks/payment', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
