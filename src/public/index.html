@@ -166,8 +166,8 @@
         const data = await res.json();
 
         if (res.ok) {
-          // Redireciona para a tela do PIX com os dados do pagamento e expiração
-          window.location.href = `pagamento.html?orderId=${data.orderId}&amount=${data.totalAmount}&nome=${encodeURIComponent(document.getElementById('nome').value)}&cpf=${encodeURIComponent(document.getElementById('cpf').value)}&qrCode=${encodeURIComponent(data.qrCodeBase64 || '')}&copiaECola=${encodeURIComponent(data.qrCodeCopiaECola || '')}`;
+          // Redireciona obrigatoriamente para a página de Pagamento PIX
+          window.location.href = `pagamento.html?orderId=${data.orderId}&amount=${data.totalAmount}&nome=${encodeURIComponent(document.getElementById('nome').value)}&cpf=${encodeURIComponent(document.getElementById('cpf').value)}&copiaECola=${encodeURIComponent(data.qrCodeCopiaECola || data.orderId)}`;
         } else {
           alert('Erro: ' + (data.error || 'Falha ao gerar cobrança'));
           btn.disabled = false;
