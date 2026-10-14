@@ -16,7 +16,7 @@ async function createEvent(req, res) {
   }
 }
 
-// 2. Criar Lote de Ingressos e carregar estoque no Redis
+// 2. Criar Lote de Ingressos
 async function createBatch(req, res) {
   const { eventId, name, price, totalQuantity } = req.body;
   try {
@@ -53,7 +53,7 @@ async function updateBatch(req, res) {
   }
 }
 
-// 4. Apagar Lote (Remoção no PostgreSQL e Redis)
+// 4. Apagar Lote
 async function deleteBatch(req, res) {
   const { id } = req.params;
   try {
