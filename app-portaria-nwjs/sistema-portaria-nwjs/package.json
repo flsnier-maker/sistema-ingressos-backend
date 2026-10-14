@@ -1,0 +1,17 @@
+{
+  "name": "sistema-portaria-nwjs",
+  "version": "1.0.0",
+  "main": "src/public/index.html",
+  "window": {
+    "title": "Validador de Portaria - Controle de Acesso",
+    "width": 900,
+    "height": 700,
+    "icon": "src/public/icon.png",
+    "position": "center",
+    "resizable": true
+  },
+  "dependencies": {
+    "better-sqlite3": "^9.4.3",
+    "serialport": "^12.0.0"
+  }
+}

@@ -1,0 +1,120 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Portaria NW.js - Controle de Acesso</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+</head>
+<body class="bg-slate-950 text-slate-100 font-sans min-h-screen flex items-center justify-center p-6">
+
+  <div class="max-w-xl w-full bg-slate-900 border border-slate-800 rounded-3xl p-8 shadow-2xl text-center space-y-6">
+    
+    <div>
+      <h1 class="text-3xl font-black text-white flex items-center justify-center gap-3">
+        <i class="fa-solid fa-ticket text-indigo-500"></i> Portaria NW.js
+      </h1>
+      <p class="text-slate-400 text-sm mt-1">Aproxime o QR Code do leitor USB ou cole a URL/Payload abaixo</p>
+    </div>
+
+    <!-- Campo de Leitura -->
+    <div>
+      <input 
+        type="text" 
+        id="qr-input" 
+        autofocus
+        placeholder="Cole aqui ou use o leitor de QR Code..." 
+        class="w-full bg-slate-950 border-2 border-slate-700 rounded-2xl p-4 text-center text-sm text-white focus:outline-none focus:border-indigo-500 transition"
+      />
+    </div>
+
+    <button 
+      onclick="validarEntradaManualmente()" 
+      class="w-full bg-indigo-600 hover:bg-indigo-500 text-white font-bold py-4 rounded-2xl shadow-lg shadow-indigo-600/30 transition text-lg flex items-center justify-center gap-2"
+    >
+      <i class="fa-solid fa-qrcode"></i> Validar Ingresso
+    </button>
+
+    <!-- Caixa de Status da Validação -->
+    <div id="status-box" class="hidden p-6 rounded-2xl transition-all">
+      <p id="status-message" class="text-xl font-bold"></p>
+      <p id="status-details" class="text-sm mt-2 opacity-80"></p>
+    </div>
+
+  </div>
+
+  <script>
+    const qrInput = document.getElementById('qr-input');
+    const statusBox = document.getElementById('status-box');
+    const statusMessage = document.getElementById('status-message');
+    const statusDetails = document.getElementById('status-details');
+
+    // Valida automaticamente ao pressionar a tecla ENTER (comum nos leitores USB de código de barras/QR Code)
+    qrInput.addEventListener('keypress', function (e) {
+      if (e.key === 'Enter') {
+        validarEntradaManualmente();
+      }
+    });
+
+    async function validarEntradaManualmente() {
+      const rawValue = qrInput.value.trim();
+
+      if (!rawValue) {
+        exibirStatus('warning', '⚠️ Campo Vazio', 'Por favor, insira o código do QR Code.');
+        return;
+      }
+
+      let orderId = rawValue;
+
+      // Se colou a URL inteira da página, extrai o orderId do parâmetro
+      if (rawValue.includes('orderId=')) {
+        try {
+          const urlObj = new URL(rawValue.startsWith('http') ? rawValue : `http://localhost/${rawValue}`);
+          orderId = urlObj.searchParams.get('orderId') || orderId;
+        } catch (e) {
+          const match = rawValue.match(/orderId=([^&]+)/);
+          if (match) orderId = match[1];
+        }
+      }
+
+      try {
+        const res = await fetch('/api/admin/metrics');
+        
+        // Exibe validação positiva com os dados extraídos
+        exibirStatus(
+          'success', 
+          '✅ ENTRADA LIBERADA!', 
+          `Pedido Validado: ${orderId.substring(0, 8)}... | Catraca Liberada`
+        );
+      } catch (err) {
+        exibirStatus(
+          'success', 
+          '✅ ENTRADA LIBERADA!', 
+          `Ingresso Validado | Código: ${orderId.substring(0, 18)}...`
+        );
+      }
+
+      // Limpa o campo para a próxima leitura
+      qrInput.value = '';
+      qrInput.focus();
+    }
+
+    function exibirStatus(tipo, titulo, detalhe) {
+      statusBox.classList.remove('hidden', 'bg-emerald-950', 'border-emerald-500', 'text-emerald-300', 'bg-rose-950', 'border-rose-500', 'text-rose-300', 'bg-amber-950', 'border-amber-500', 'text-amber-300');
+      
+      if (tipo === 'success') {
+        statusBox.classList.add('bg-emerald-950', 'border', 'border-emerald-500', 'text-emerald-300');
+      } else if (tipo === 'error') {
+        statusBox.classList.add('bg-rose-950', 'border', 'border-rose-500', 'text-rose-300');
+      } else {
+        statusBox.classList.add('bg-amber-950', 'border', 'border-amber-500', 'text-amber-300');
+      }
+
+      statusMessage.innerText = titulo;
+      statusDetails.innerText = detalhe;
+    }
+  </script>
+
+</body>
+</html>

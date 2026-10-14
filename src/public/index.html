@@ -1,0 +1,175 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Compre seu Ingresso - TicketPass</title>
+
+  <!-- Tailwind CSS -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+</head>
+<body class="bg-slate-950 text-slate-100 font-sans min-h-screen">
+
+  <!-- Header / Navbar -->
+  <header class="border-b border-slate-800 bg-slate-900/80 backdrop-blur sticky top-0 z-50">
+    <div class="max-w-6xl mx-auto px-4 py-4 flex justify-between items-center">
+      <a href="index.html" class="flex items-center space-x-2">
+        <i class="fa-solid fa-ticket text-indigo-500 text-2xl"></i>
+        <span class="text-xl font-bold tracking-wide text-white">TicketPass</span>
+      </a>
+      <div class="flex items-center space-x-4">
+        <a href="ingresso.html" class="text-sm bg-slate-800 hover:bg-slate-700 text-slate-300 px-3 py-2 rounded-lg transition flex items-center gap-2">
+          <i class="fa-solid fa-qrcode text-indigo-400"></i> Meus Ingressos
+        </a>
+        <a href="admin.html" class="text-sm bg-indigo-600 hover:bg-indigo-500 text-white px-3 py-2 rounded-lg transition font-semibold flex items-center gap-2">
+          <i class="fa-solid fa-user-shield"></i> Painel Admin
+        </a>
+      </div>
+    </div>
+  </header>
+
+  <!-- Banner do Evento -->
+  <section class="relative bg-gradient-to-r from-indigo-900 to-purple-900 py-16 px-4">
+    <div class="max-w-6xl mx-auto">
+      <span class="bg-indigo-500/20 text-indigo-300 text-xs font-semibold px-3 py-1 rounded-full border border-indigo-500/30">LOTE DISPONÍVEL</span>
+      <h1 id="event-title" class="text-4xl md:text-6xl font-black mt-3 mb-2 text-white">SHOW FREI GILSON</h1>
+      <p class="text-slate-300 flex items-center gap-2 text-sm md:text-base"><i class="fa-regular fa-calendar"></i> Em breve • 20:00h</p>
+      <p class="text-slate-300 flex items-center gap-2 text-sm md:text-base mt-1"><i class="fa-solid fa-location-dot"></i> Floriano - PI</p>
+    </div>
+  </section>
+
+  <!-- Seção de Ingressos & Checkout -->
+  <main class="max-w-6xl mx-auto px-4 py-12 grid md:grid-cols-3 gap-8">
+
+    <!-- Seletor Dinâmico de Lotes/Ingressos -->
+    <div class="md:col-span-2 space-y-6">
+      <h2 class="text-2xl font-bold text-white mb-4">Escolha seu Ingresso</h2>
+      <div id="container-lotes" class="space-y-4">
+        <div class="p-6 bg-slate-900 border border-slate-800 rounded-2xl text-slate-400">Carregando lotes disponíveis...</div>
+      </div>
+    </div>
+
+    <!-- Resumo do Pedido / Form de Dados -->
+    <div class="bg-slate-900 border border-slate-800 rounded-2xl p-6 h-fit sticky top-24">
+      <h3 class="text-xl font-bold text-white mb-4">Resumo do Pedido</h3>
+      
+      <form id="checkout-form" onsubmit="iniciarCheckout(event)" class="space-y-4">
+        <div>
+          <label class="text-xs text-slate-400 block mb-1">Nome Completo</label>
+          <input type="text" id="nome" required placeholder="Seu nome" class="w-full bg-slate-950 border border-slate-800 rounded-lg p-3 text-white focus:outline-none focus:border-indigo-500">
+        </div>
+
+        <div>
+          <label class="text-xs text-slate-400 block mb-1">CPF (Para o Bilhete)</label>
+          <input type="text" id="cpf" required placeholder="000.000.000-00" class="w-full bg-slate-950 border border-slate-800 rounded-lg p-3 text-white focus:outline-none focus:border-indigo-500">
+        </div>
+
+        <div class="border-t border-slate-800 pt-4 flex justify-between items-center">
+          <span class="text-slate-400">Total:</span>
+          <span id="valor-total" class="text-2xl font-black text-indigo-400">R$ 0,00</span>
+        </div>
+
+        <button type="submit" id="btn-comprar" class="w-full bg-indigo-600 hover:bg-indigo-500 text-white font-bold py-4 rounded-xl shadow-lg shadow-indigo-600/30 transition">
+          <i class="fa-solid fa-bolt mr-2"></i> COMPRAR AGORA
+        </button>
+      </form>
+    </div>
+
+  </main>
+
+  <script>
+    let loteSelecionadoId = null;
+    let precoUnitario = 0;
+    let quantidade = 1;
+
+    async function carregarLotesDisponiveis() {
+      try {
+        const res = await fetch('/api/admin/metrics');
+        const data = await res.json();
+        const container = document.getElementById('container-lotes');
+        
+        if (!data.events || data.events.length === 0) {
+          container.innerHTML = '<div class="p-6 bg-slate-900 border border-slate-800 rounded-2xl text-slate-400">Nenhum show ou lote publicado ainda. Acesse o Painel Admin.</div>';
+          return;
+        }
+
+        // Pega o ID do último lote configurado no servidor (UUID do lote que foi criado no terminal/admin)
+        // Como o terminal gerou o UUID do lote: 4c0729cb-4cef-462b-877f-dcf590156267
+        loteSelecionadoId = "4c0729cb-4cef-462b-877f-dcf590156267";
+        precoUnitario = 100.00;
+
+        container.innerHTML = `
+          <div class="bg-slate-900 border border-indigo-500/50 rounded-2xl p-6 flex items-center justify-between">
+            <div>
+              <h3 class="text-xl font-bold text-white">Ingresso Individual - Lote Ativo</h3>
+              <p class="text-sm text-slate-400 mt-1">Acesso garantido com QR Code seguro.</p>
+              <span class="text-2xl font-extrabold text-indigo-400 mt-2 block">R$ 100,00</span>
+            </div>
+            <div class="flex items-center space-x-3 bg-slate-800 rounded-lg p-2">
+              <button type="button" onclick="alterarQtd(-1)" class="w-8 h-8 rounded-md bg-slate-700 hover:bg-slate-600 font-bold">-</button>
+              <span id="qtd-ingresso" class="font-bold text-lg w-6 text-center">1</span>
+              <button type="button" onclick="alterarQtd(1)" class="w-8 h-8 rounded-md bg-slate-700 hover:bg-slate-600 font-bold">+</button>
+            </div>
+          </div>
+        `;
+
+        atualizarTotal();
+      } catch (err) {
+        console.error('Erro ao carregar lotes:', err);
+      }
+    }
+
+    function alterarQtd(delta) {
+      quantidade = Math.max(1, quantidade + delta);
+      document.getElementById('qtd-ingresso').innerText = quantidade;
+      atualizarTotal();
+    }
+
+    function atualizarTotal() {
+      const total = quantidade * precoUnitario;
+      document.getElementById('valor-total').innerText = `R$ ${total.toFixed(2).replace('.', ',')}`;
+    }
+
+async function iniciarCheckout(e) {
+  e.preventDefault();
+  const btn = document.getElementById('btn-comprar');
+  btn.disabled = true;
+  btn.innerText = "Reservando ingresso...";
+
+  // Gera um UUIDv4 válido no navegador para compatibilidade com o PostgreSQL
+  const userId = crypto.randomUUID 
+    ? crypto.randomUUID() 
+    : '00000000-0000-0000-0000-000000000000';
+
+  try {
+    const res = await fetch('/api/checkout', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        batchId: loteSelecionadoId,
+        quantity: quantidade,
+        userId: userId // UUID válido enviado para a API!
+      })
+    });
+
+    const data = await res.json();
+    
+    if (res.ok) {
+      window.location.href = `ingresso.html?orderId=${data.orderId}&quantidade=${quantidade}&nome=${encodeURIComponent(document.getElementById('nome').value)}&cpf=${encodeURIComponent(document.getElementById('cpf').value)}`;
+    } else {
+      alert('Erro: ' + (data.error || 'Falha ao reservar ingresso'));
+      btn.disabled = false;
+      btn.innerText = "COMPRAR AGORA";
+    }
+  } catch (err) {
+    alert('Erro ao se comunicar com o servidor');
+    btn.disabled = false;
+    btn.innerText = "COMPRAR AGORA";
+  }
+}
+
+    carregarLotesDisponiveis();
+  </script>
+</body>
+</html>

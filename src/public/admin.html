@@ -1,0 +1,188 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Painel do Administrador - Gestão de Ingressos</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+</head>
+<body class="bg-slate-950 text-slate-100 font-sans min-h-screen">
+
+  <!-- Topbar Admin -->
+  <header class="border-b border-slate-800 bg-slate-900 px-6 py-4 flex justify-between items-center">
+    <div class="flex items-center space-x-3">
+      <i class="fa-solid fa-user-shield text-indigo-500 text-2xl"></i>
+      <h1 class="text-xl font-bold text-white">Painel do Administrador</h1>
+    </div>
+    <a href="index.html" class="text-xs bg-slate-800 hover:bg-slate-700 text-slate-300 px-3 py-2 rounded-lg">Ir para a Loja</a>
+  </header>
+
+  <main class="max-w-7xl mx-auto px-6 py-8 space-y-8">
+
+    <!-- Métricas Gerais -->
+    <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+      <div class="bg-slate-900 border border-slate-800 p-6 rounded-2xl">
+        <p class="text-xs text-slate-400 uppercase font-semibold">Receita Total</p>
+        <p id="total-revenue" class="text-3xl font-black text-emerald-400 mt-2">R$ 0,00</p>
+      </div>
+      <div class="bg-slate-900 border border-slate-800 p-6 rounded-2xl">
+        <p class="text-xs text-slate-400 uppercase font-semibold">Pedidos Pagos</p>
+        <p id="total-orders" class="text-3xl font-black text-indigo-400 mt-2">0</p>
+      </div>
+      <div class="bg-slate-900 border border-slate-800 p-6 rounded-2xl">
+        <p class="text-xs text-slate-400 uppercase font-semibold">Ingressos Emitidos</p>
+        <p id="valid-tickets" class="text-3xl font-black text-purple-400 mt-2">0</p>
+      </div>
+    </div>
+
+    <div class="grid grid-cols-1 lg:grid-cols-2 gap-8">
+      
+      <!-- Formulário: Criar Novo Show / Evento -->
+      <div class="bg-slate-900 border border-slate-800 p-6 rounded-2xl">
+        <h2 class="text-lg font-bold text-white mb-4"><i class="fa-solid fa-calendar-plus mr-2 text-indigo-500"></i> Cadastrar Novo Show</h2>
+        <form id="form-event" onsubmit="cadastrarEvento(event)" class="space-y-4">
+          <div>
+            <label class="text-xs text-slate-400 block mb-1">Título do Evento</label>
+            <input type="text" id="event-title" required placeholder="Ex: Show Frei Gilson" class="w-full bg-slate-950 border border-slate-800 rounded-lg p-3 text-white">
+          </div>
+          <div>
+            <label class="text-xs text-slate-400 block mb-1">Slug (URL amigável)</label>
+            <input type="text" id="event-slug" required placeholder="ex: freigilson-floriano-pi" class="w-full bg-slate-950 border border-slate-800 rounded-lg p-3 text-white">
+          </div>
+          <button type="submit" id="btn-criar-evento" class="w-full bg-indigo-600 hover:bg-indigo-500 text-white font-bold py-3 rounded-xl">Criar Evento</button>
+        </form>
+      </div>
+
+      <!-- Formulário: Criar Lote & Estoque no Redis -->
+      <div class="bg-slate-900 border border-slate-800 p-6 rounded-2xl">
+        <h2 class="text-lg font-bold text-white mb-4"><i class="fa-solid fa-layer-group mr-2 text-indigo-500"></i> Publicar Lote & Iniciar Estoque</h2>
+        <form id="form-batch" onsubmit="cadastrarLote(event)" class="space-y-4">
+          <div>
+            <label class="text-xs text-slate-400 block mb-1">ID do Evento</label>
+            <select id="select-event" required class="w-full bg-slate-950 border border-slate-800 rounded-lg p-3 text-white">
+              <option value="">Carregando eventos...</option>
+            </select>
+          </div>
+          <div class="grid grid-cols-2 gap-4">
+            <div>
+              <label class="text-xs text-slate-400 block mb-1">Nome do Lote</label>
+              <input type="text" id="batch-name" required placeholder="LOTE 01" class="w-full bg-slate-950 border border-slate-800 rounded-lg p-3 text-white">
+            </div>
+            <div>
+              <label class="text-xs text-slate-400 block mb-1">Preço (R$)</label>
+              <input type="number" step="0.01" id="batch-price" required placeholder="100.00" class="w-full bg-slate-950 border border-slate-800 rounded-lg p-3 text-white">
+            </div>
+          </div>
+          <div>
+            <label class="text-xs text-slate-400 block mb-1">Quantidade de Ingressos (Estoque Redis)</label>
+            <input type="number" id="batch-qty" required placeholder="1000" class="w-full bg-slate-950 border border-slate-800 rounded-lg p-3 text-white">
+          </div>
+          <button type="submit" id="btn-carregar-lote" class="w-full bg-emerald-600 hover:bg-emerald-500 text-white font-bold py-3 rounded-xl">Carregar Lote no Redis</button>
+        </form>
+      </div>
+
+    </div>
+
+  </main>
+
+  <script>
+    async function carregarMetricas() {
+      try {
+        const res = await fetch('/api/admin/metrics');
+        const data = await res.json();
+
+        if (data.metrics) {
+          document.getElementById('total-revenue').innerText = `R$ ${parseFloat(data.metrics.totalRevenue || 0).toFixed(2).replace('.', ',')}`;
+          document.getElementById('total-orders').innerText = data.metrics.totalOrders || 0;
+          document.getElementById('valid-tickets').innerText = data.metrics.validTickets || 0;
+        }
+
+        const select = document.getElementById('select-event');
+        select.innerHTML = '<option value="">Selecione um evento...</option>';
+
+        if (data.events && data.events.length > 0) {
+          data.events.forEach(ev => {
+            select.innerHTML += `<option value="${ev.id}">${ev.title}</option>`;
+          });
+        } else {
+          select.innerHTML = '<option value="">Nenhum evento cadastrado ainda</option>';
+        }
+      } catch (err) {
+        console.error('Erro ao carregar dados do admin:', err);
+      }
+    }
+
+    async function cadastrarEvento(e) {
+      e.preventDefault();
+      const btn = document.getElementById('btn-criar-evento');
+      btn.disabled = true;
+
+      const title = document.getElementById('event-title').value;
+      const slug = document.getElementById('event-slug').value;
+
+      try {
+        const res = await fetch('/api/admin/events', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ title, slug })
+        });
+
+        const data = await res.json();
+
+        if (res.ok) {
+          alert('✅ Evento cadastrado com sucesso!');
+          document.getElementById('event-title').value = '';
+          document.getElementById('event-slug').value = '';
+          await carregarMetricas(); // Atualiza a lista do select imediatamente
+        } else {
+          alert('❌ Erro ao criar evento: ' + (data.error || 'Falha no servidor'));
+        }
+      } catch (err) {
+        alert('❌ Erro de conexão com a API.');
+      } finally {
+        btn.disabled = false;
+      }
+    }
+
+    async function cadastrarLote(e) {
+      e.preventDefault();
+      const eventId = document.getElementById('select-event').value;
+
+      if (!eventId) {
+        alert('Por favor, selecione um evento na lista!');
+        return;
+      }
+
+      const name = document.getElementById('batch-name').value;
+      const price = parseFloat(document.getElementById('batch-price').value);
+      const totalQuantity = parseInt(document.getElementById('batch-qty').value);
+
+      try {
+        const res = await fetch('/api/admin/batches', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ eventId, name, price, totalQuantity })
+        });
+
+        const data = await res.json();
+
+        if (res.ok) {
+          alert('✅ Lote publicado e estoque carregado no Redis com sucesso!');
+          document.getElementById('batch-name').value = '';
+          document.getElementById('batch-price').value = '';
+          document.getElementById('batch-qty').value = '';
+          await carregarMetricas();
+        } else {
+          alert('❌ Erro ao criar lote: ' + (data.error || 'Falha no servidor'));
+        }
+      } catch (err) {
+        alert('❌ Erro de conexão com a API.');
+      }
+    }
+
+    // Carrega a lista de eventos assim que abre a página
+    carregarMetricas();
+  </script>
+</body>
+</html>
