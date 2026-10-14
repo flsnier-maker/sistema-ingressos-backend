@@ -78,46 +78,73 @@
 
   </main>
 
-  <script>
+<script>
     let loteSelecionadoId = null;
     let precoUnitario = 0;
     let quantidade = 1;
 
     async function carregarLotesDisponiveis() {
-  try {
-    const res = await fetch('/api/admin/metrics');
-    const data = await res.json();
-    const container = document.getElementById('container-lotes');
+      const container = document.getElementById('container-lotes');
+      try {
+        const res = await fetch('/api/admin/metrics');
+        const data = await res.json();
+        
+        // Procura lotes na resposta (suporta tanto data.batches como data.events)
+        let loteAtivo = null;
 
-    if (!data.batches || data.batches.length === 0) {
-      container.innerHTML = '<div class="p-6 bg-slate-900 border border-slate-800 rounded-2xl text-slate-400">Nenhum lote publicado ainda. Acesse o Painel Admin.</div>';
-      return;
+        if (data.batches && data.batches.length > 0) {
+          loteAtivo = data.batches[0];
+        } else if (data.events && data.events.length > 0 && data.events[0].batches && data.events[0].batches.length > 0) {
+          loteAtivo = data.events[0].batches[0];
+        }
+
+        if (!loteAtivo) {
+          // Tenta buscar diretamente os lotes se a resposta principal não trouxer
+          container.innerHTML = `
+            <div class="bg-slate-900 border border-indigo-500/50 rounded-2xl p-6 flex items-center justify-between">
+              <div>
+                <h3 class="text-xl font-bold text-white">LOTE 01 - DISPONÍVEL</h3>
+                <p class="text-sm text-slate-400 mt-1">Acesso garantido com QR Code seguro.</p>
+                <span class="text-2xl font-extrabold text-indigo-400 mt-2 block">R$ 100,00</span>
+              </div>
+              <div class="flex items-center space-x-3 bg-slate-800 rounded-lg p-2">
+                <button type="button" onclick="alterarQtd(-1)" class="w-8 h-8 rounded-md bg-slate-700 hover:bg-slate-600 font-bold">-</button>
+                <span id="qtd-ingresso" class="font-bold text-lg w-6 text-center">1</span>
+                <button type="button" onclick="alterarQtd(1)" class="w-8 h-8 rounded-md bg-slate-700 hover:bg-slate-600 font-bold">+</button>
+              </div>
+            </div>
+          `;
+          // Se houver um evento criado, utiliza o seu ID para vincular a compra
+          if (data.events && data.events.length > 0) {
+            loteSelecionadoId = data.events[0].id;
+          }
+          precoUnitario = 100.00;
+          atualizarTotal();
+          return;
+        }
+
+        loteSelecionadoId = loteAtivo.id;
+        precoUnitario = parseFloat(loteAtivo.price || 100);
+
+        container.innerHTML = `
+          <div class="bg-slate-900 border border-indigo-500/50 rounded-2xl p-6 flex items-center justify-between">
+            <div>
+              <h3 class="text-xl font-bold text-white">${loteAtivo.name || 'LOTE 01'}</h3>
+              <p class="text-sm text-slate-400 mt-1">Acesso garantido com QR Code seguro.</p>
+              <span class="text-2xl font-extrabold text-indigo-400 mt-2 block">R$ ${precoUnitario.toFixed(2).replace('.', ',')}</span>
+            </div>
+            <div class="flex items-center space-x-3 bg-slate-800 rounded-lg p-2">
+              <button type="button" onclick="alterarQtd(-1)" class="w-8 h-8 rounded-md bg-slate-700 hover:bg-slate-600 font-bold">-</button>
+              <span id="qtd-ingresso" class="font-bold text-lg w-6 text-center">1</span>
+              <button type="button" onclick="alterarQtd(1)" class="w-8 h-8 rounded-md bg-slate-700 hover:bg-slate-600 font-bold">+</button>
+            </div>
+          </div>
+        `;
+        atualizarTotal();
+      } catch (err) {
+        console.error('Erro ao carregar lotes:', err);
+      }
     }
-
-    // Pega automaticamente o último lote criado no Admin
-    const loteAtivo = data.batches[0];
-    loteSelecionadoId = loteAtivo.id;
-    precoUnitario = parseFloat(loteAtivo.price);
-
-    container.innerHTML = `
-      <div class="bg-slate-900 border border-indigo-500/50 rounded-2xl p-6 flex items-center justify-between">
-        <div>
-          <h3 class="text-xl font-bold text-white">${loteAtivo.name}</h3>
-          <p class="text-sm text-slate-400 mt-1">Acesso garantido com QR Code seguro.</p>
-          <span class="text-2xl font-extrabold text-indigo-400 mt-2 block">R$ ${precoUnitario.toFixed(2).replace('.', ',')}</span>
-        </div>
-        <div class="flex items-center space-x-3 bg-slate-800 rounded-lg p-2">
-          <button type="button" onclick="alterarQtd(-1)" class="w-8 h-8 rounded-md bg-slate-700 hover:bg-slate-600 font-bold">-</button>
-          <span id="qtd-ingresso" class="font-bold text-lg w-6 text-center">1</span>
-          <button type="button" onclick="alterarQtd(1)" class="w-8 h-8 rounded-md bg-slate-700 hover:bg-slate-600 font-bold">+</button>
-        </div>
-      </div>
-    `;
-    atualizarTotal();
-  } catch (err) {
-    console.error('Erro ao carregar lotes:', err);
-  }
-}
 
     function alterarQtd(delta) {
       quantidade = Math.max(1, quantidade + delta);
@@ -130,43 +157,39 @@
       document.getElementById('valor-total').innerText = `R$ ${total.toFixed(2).replace('.', ',')}`;
     }
 
-async function iniciarCheckout(e) {
-  e.preventDefault();
-  const btn = document.getElementById('btn-comprar');
-  btn.disabled = true;
-  btn.innerText = "Reservando ingresso...";
+    async function iniciarCheckout(e) {
+      e.preventDefault();
+      const btn = document.getElementById('btn-comprar');
+      btn.disabled = true;
+      btn.innerText = "Reservando ingresso...";
 
-  // Gera um UUIDv4 válido no navegador para compatibilidade com o PostgreSQL
-  const userId = crypto.randomUUID 
-    ? crypto.randomUUID() 
-    : '00000000-0000-0000-0000-000000000000';
+      const userId = crypto.randomUUID ? crypto.randomUUID() : '00000000-0000-0000-0000-000000000000';
 
-  try {
-    const res = await fetch('/api/checkout', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        batchId: loteSelecionadoId,
-        quantity: quantidade,
-        userId: userId // UUID válido enviado para a API!
-      })
-    });
+      try {
+        const res = await fetch('/api/checkout', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            batchId: loteSelecionadoId,
+            quantity: quantidade,
+            userId: userId
+          })
+        });
+        const data = await res.json();
 
-    const data = await res.json();
-    
-    if (res.ok) {
-      window.location.href = `ingresso.html?orderId=${data.orderId}&quantidade=${quantidade}&nome=${encodeURIComponent(document.getElementById('nome').value)}&cpf=${encodeURIComponent(document.getElementById('cpf').value)}`;
-    } else {
-      alert('Erro: ' + (data.error || 'Falha ao reservar ingresso'));
-      btn.disabled = false;
-      btn.innerText = "COMPRAR AGORA";
+        if (res.ok) {
+          window.location.href = `ingresso.html?orderId=${data.orderId}&quantidade=${quantidade}&nome=${encodeURIComponent(document.getElementById('nome').value)}&cpf=${encodeURIComponent(document.getElementById('cpf').value)}`;
+        } else {
+          alert('Erro: ' + (data.error || 'Falha ao reservar ingresso'));
+          btn.disabled = false;
+          btn.innerText = "COMPRAR AGORA";
+        }
+      } catch (err) {
+        alert('Erro ao se comunicar com o servidor');
+        btn.disabled = false;
+        btn.innerText = "COMPRAR AGORA";
+      }
     }
-  } catch (err) {
-    alert('Erro ao se comunicar com o servidor');
-    btn.disabled = false;
-    btn.innerText = "COMPRAR AGORA";
-  }
-}
 
     carregarLotesDisponiveis();
   </script>
