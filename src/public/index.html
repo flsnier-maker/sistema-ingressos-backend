@@ -15,9 +15,6 @@
         <span class="text-xl font-bold tracking-wide text-white">TicketPass</span>
       </a>
       <div class="flex items-center space-x-4">
-        <a href="ingresso.html" class="text-sm bg-slate-800 hover:bg-slate-700 text-slate-300 px-3 py-2 rounded-lg flex items-center gap-2">
-          <i class="fa-solid fa-qrcode text-indigo-400"></i> Meus Ingressos
-        </a>
         <a href="admin.html" class="text-sm bg-indigo-600 hover:bg-indigo-500 text-white px-3 py-2 rounded-lg font-semibold flex items-center gap-2">
           <i class="fa-solid fa-user-shield"></i> Painel Admin
         </a>
@@ -27,7 +24,7 @@
 
   <section class="relative bg-gradient-to-r from-indigo-900 to-purple-900 py-16 px-4">
     <div class="max-w-6xl mx-auto">
-      <span class="bg-indigo-500/20 text-indigo-300 text-xs font-semibold px-3 py-1 rounded-full border border-indigo-500/30">LOTE DISPONÍVEL</span>
+      <span class="bg-indigo-500/20 text-indigo-300 text-xs font-semibold px-3 py-1 rounded-full border border-indigo-500/30">VENDAS ABERTAS</span>
       <h1 class="text-4xl md:text-6xl font-black mt-3 mb-2 text-white">SHOW FREI GILSON</h1>
       <p class="text-slate-300 flex items-center gap-2 text-sm md:text-base"><i class="fa-regular fa-calendar"></i> Em breve • 20:00h</p>
       <p class="text-slate-300 flex items-center gap-2 text-sm md:text-base mt-1"><i class="fa-solid fa-location-dot"></i> Floriano - PI</p>
@@ -47,7 +44,7 @@
       <form id="checkout-form" onsubmit="iniciarCheckout(event)" class="space-y-4">
         <div>
           <label class="text-xs text-slate-400 block mb-1">Nome Completo</label>
-          <input type="text" id="nome" required placeholder="Seu nome" class="w-full bg-slate-950 border border-slate-800 rounded-lg p-3 text-white">
+          <input type="text" id="nome" required placeholder="Seu nome completo" class="w-full bg-slate-950 border border-slate-800 rounded-lg p-3 text-white">
         </div>
         <div>
           <label class="text-xs text-slate-400 block mb-1">CPF (Para o Bilhete)</label>
@@ -57,8 +54,8 @@
           <span class="text-slate-400">Total:</span>
           <span id="valor-total" class="text-2xl font-black text-indigo-400">R$ 0,00</span>
         </div>
-        <button type="submit" id="btn-comprar" class="w-full bg-indigo-600 hover:bg-indigo-500 text-white font-bold py-4 rounded-xl shadow-lg shadow-indigo-600/30">
-          <i class="fa-solid fa-bolt mr-2"></i> COMPRAR AGORA
+        <button type="submit" id="btn-comprar" class="w-full bg-indigo-600 hover:bg-indigo-500 text-white font-bold py-4 rounded-xl shadow-lg shadow-indigo-600/30 transition">
+          <i class="fa-solid fa-bolt mr-2"></i> GERAR PIX PARA PAGAMENTO
         </button>
       </form>
     </div>
@@ -66,8 +63,9 @@
 
   <script>
     let loteSelecionadoId = null;
-    let precoUnitario = 100.00;
+    let precoUnitario = 0;
     let quantidade = 1;
+    let lotesDisponiveis = [];
 
     async function carregarLotesDisponiveis() {
       const container = document.getElementById('container-lotes');
@@ -75,34 +73,59 @@
         const res = await fetch('/api/admin/metrics');
         const data = await res.json();
         
-        let lote = null;
-        if (data.batches && data.batches.length > 0) {
-          lote = data.batches[0];
+        lotesDisponiveis = data.batches || [];
+
+        if (lotesDisponiveis.length === 0) {
+          container.innerHTML = '<div class="p-6 bg-slate-900 border border-slate-800 rounded-2xl text-slate-400">Nenhum lote disponível no momento.</div>';
+          return;
         }
 
-        if (lote) {
-          loteSelecionadoId = lote.id;
-          precoUnitario = parseFloat(lote.price);
-        }
+        // Seleciona o primeiro lote por padrão
+        loteSelecionadoId = lotesDisponiveis[0].id;
+        precoUnitario = parseFloat(lotesDisponiveis[0].price);
 
-        container.innerHTML = `
-          <div class="bg-slate-900 border border-indigo-500/50 rounded-2xl p-6 flex items-center justify-between">
+        container.innerHTML = lotesDisponiveis.map((lote, index) => `
+          <div onclick="selecionarLote('${lote.id}', ${lote.price}, this)" 
+               class="lote-card cursor-pointer bg-slate-900 border ${index === 0 ? 'border-indigo-500 bg-indigo-950/20' : 'border-slate-800'} hover:border-indigo-500/50 rounded-2xl p-6 flex items-center justify-between transition">
             <div>
-              <h3 class="text-xl font-bold text-white">${lote ? lote.name : 'LOTE 01'}</h3>
+              <div class="flex items-center gap-2">
+                <input type="radio" name="lote-radio" ${index === 0 ? 'checked' : ''} class="accent-indigo-500">
+                <h3 class="text-xl font-bold text-white">${lote.name}</h3>
+              </div>
               <p class="text-sm text-slate-400 mt-1">Acesso garantido com QR Code seguro.</p>
-              <span class="text-2xl font-extrabold text-indigo-400 mt-2 block">R$ ${precoUnitario.toFixed(2).replace('.', ',')}</span>
+              <span class="text-2xl font-extrabold text-indigo-400 mt-2 block">R$ ${parseFloat(lote.price).toFixed(2).replace('.', ',')}</span>
             </div>
-            <div class="flex items-center space-x-3 bg-slate-800 rounded-lg p-2">
-              <button type="button" onclick="alterarQtd(-1)" class="w-8 h-8 rounded-md bg-slate-700 font-bold">-</button>
+            <div class="flex items-center space-x-3 bg-slate-800 rounded-lg p-2" onclick="event.stopPropagation()">
+              <button type="button" onclick="alterarQtd(-1)" class="w-8 h-8 rounded-md bg-slate-700 hover:bg-slate-600 font-bold">-</button>
               <span id="qtd-ingresso" class="font-bold text-lg w-6 text-center">1</span>
-              <button type="button" onclick="alterarQtd(1)" class="w-8 h-8 rounded-md bg-slate-700 font-bold">+</button>
+              <button type="button" onclick="alterarQtd(1)" class="w-8 h-8 rounded-md bg-slate-700 hover:bg-slate-600 font-bold">+</button>
             </div>
           </div>
-        `;
+        `).join('');
+
         atualizarTotal();
       } catch (err) {
         console.error('Erro ao carregar lotes:', err);
       }
+    }
+
+    function selecionarLote(id, preco, el) {
+      loteSelecionadoId = id;
+      precoUnitario = parseFloat(preco);
+      
+      document.querySelectorAll('.lote-card').forEach(card => {
+        card.classList.remove('border-indigo-500', 'bg-indigo-950/20');
+        card.classList.add('border-slate-800');
+        const radio = card.querySelector('input[type="radio"]');
+        if (radio) radio.checked = false;
+      });
+
+      el.classList.remove('border-slate-800');
+      el.classList.add('border-indigo-500', 'bg-indigo-950/20');
+      const radio = el.querySelector('input[type="radio"]');
+      if (radio) radio.checked = true;
+
+      atualizarTotal();
     }
 
     function alterarQtd(delta) {
@@ -117,9 +140,14 @@
 
     async function iniciarCheckout(e) {
       e.preventDefault();
+      if (!loteSelecionadoId) {
+        alert('Por favor, selecione um lote.');
+        return;
+      }
+
       const btn = document.getElementById('btn-comprar');
       btn.disabled = true;
-      btn.innerText = "Reservando ingresso...";
+      btn.innerText = "Gerando PIX de Pagamento...";
 
       const userId = crypto.randomUUID ? crypto.randomUUID() : '00000000-0000-0000-0000-000000000000';
 
@@ -130,22 +158,25 @@
           body: JSON.stringify({
             batchId: loteSelecionadoId,
             quantity: quantidade,
-            userId: userId
+            userId: userId,
+            nome: document.getElementById('nome').value,
+            cpf: document.getElementById('cpf').value
           })
         });
         const data = await res.json();
 
         if (res.ok) {
-          window.location.href = `ingresso.html?orderId=${data.orderId}&quantidade=${quantidade}&nome=${encodeURIComponent(document.getElementById('nome').value)}&cpf=${encodeURIComponent(document.getElementById('cpf').value)}`;
+          // Redireciona para a tela do PIX com os dados do pagamento e expiração
+          window.location.href = `pagamento.html?orderId=${data.orderId}&amount=${data.totalAmount}&nome=${encodeURIComponent(document.getElementById('nome').value)}&cpf=${encodeURIComponent(document.getElementById('cpf').value)}&qrCode=${encodeURIComponent(data.qrCodeBase64 || '')}&copiaECola=${encodeURIComponent(data.qrCodeCopiaECola || '')}`;
         } else {
-          alert('Erro: ' + (data.error || 'Falha ao reservar ingresso'));
+          alert('Erro: ' + (data.error || 'Falha ao gerar cobrança'));
           btn.disabled = false;
-          btn.innerText = "COMPRAR AGORA";
+          btn.innerText = "GERAR PIX PARA PAGAMENTO";
         }
       } catch (err) {
-        alert('Erro ao se comunicar com o servidor');
+        alert('Erro de conexão com o servidor');
         btn.disabled = false;
-        btn.innerText = "COMPRAR AGORA";
+        btn.innerText = "GERAR PIX PARA PAGAMENTO";
       }
     }
 
