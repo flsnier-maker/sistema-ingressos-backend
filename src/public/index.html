@@ -165,8 +165,8 @@
         });
         const data = await res.json();
 
-        if (res.ok) {
-          // Redireciona obrigatoriamente para a página de Pagamento PIX
+   if (res.ok) {
+          // Redireciona obrigatoriamente para a tela de Pagamento PIX
           window.location.href = `pagamento.html?orderId=${data.orderId}&amount=${data.totalAmount}&nome=${encodeURIComponent(document.getElementById('nome').value)}&cpf=${encodeURIComponent(document.getElementById('cpf').value)}&copiaECola=${encodeURIComponent(data.qrCodeCopiaECola || data.orderId)}`;
         } else {
           alert('Erro: ' + (data.error || 'Falha ao gerar cobrança'));
