@@ -16,7 +16,7 @@ async function createEvent(req, res) {
   }
 }
 
-// 2. Criar Lote de Ingressos
+// 2. Criar Lote de Ingressos e carregar estoque no Redis
 async function createBatch(req, res) {
   const { eventId, name, price, totalQuantity } = req.body;
   try {
@@ -46,9 +46,7 @@ async function updateBatch(req, res) {
       return res.status(404).json({ error: 'Lote não encontrado.' });
     }
 
-    // Atualiza também o estoque no Redis
     await initBatchInventory(id, totalQuantity);
-
     res.json({ message: 'Lote atualizado com sucesso!', batch: result.rows[0] });
   } catch (err) {
     res.status(500).json({ error: err.message });
@@ -65,20 +63,17 @@ async function deleteBatch(req, res) {
       return res.status(404).json({ error: 'Lote não encontrado.' });
     }
 
-    // Remove do Redis
     await redis.del(`inventory:batch:${id}`);
-
     res.json({ message: 'Lote removido com sucesso!' });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
 }
 
-// 5. Apagar Evento (Remoção em cascata)
+// 5. Apagar Evento
 async function deleteEvent(req, res) {
   const { id } = req.params;
   try {
-    // Busca os lotes para remover do Redis também
     const batches = await pool.query(`SELECT id FROM batches WHERE event_id = $1`, [id]);
     for (const b of batches.rows) {
       await redis.del(`inventory:batch:${b.id}`);
