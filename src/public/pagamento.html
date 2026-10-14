@@ -40,7 +40,7 @@
       <p id="copy-msg" class="text-xs text-emerald-400 hidden font-bold">✓ Código copiado com sucesso!</p>
     </div>
 
-    <!-- Simulação de Teste Manual (Caso não use webhook do Mercado Pago) -->
+    <!-- Simulação de Teste Manual -->
     <div class="border-t border-slate-800 pt-4">
       <button onclick="simularAprovacao()" class="text-xs text-slate-500 hover:text-slate-300 underline">
         [Modo Teste] Simular Aprovação do Pagamento
@@ -89,7 +89,7 @@
       tempoRestante--;
     }, 1000);
 
-    // Consulta automática do status do pagamento a cada 3 segundos
+    // Consulta automática do status a cada 3 segundos
     const checkStatus = setInterval(async () => {
       try {
         const res = await fetch(`/api/orders/${orderId}`);
@@ -98,7 +98,6 @@
           if (data.status === 'paid') {
             clearInterval(checkStatus);
             clearInterval(countdown);
-            // Redireciona imediatamente para o ingresso emitido!
             window.location.href = `ingresso.html?orderId=${orderId}&nome=${encodeURIComponent(nome)}&cpf=${encodeURIComponent(cpf)}`;
           }
         }
