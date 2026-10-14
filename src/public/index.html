@@ -138,7 +138,7 @@
       document.getElementById('valor-total').innerText = `R$ ${(quantidade * precoUnitario).toFixed(2).replace('.', ',')}`;
     }
 
-    async function iniciarCheckout(e) {
+  async function iniciarCheckout(e) {
       e.preventDefault();
       if (!loteSelecionadoId) {
         alert('Por favor, selecione um lote.');
@@ -165,8 +165,8 @@
         });
         const data = await res.json();
 
-   if (res.ok) {
-          // Redireciona obrigatoriamente para a tela de Pagamento PIX
+        if (res.ok) {
+          // REDIRECIONAMENTO CORRETO PARA A TELA DE PAGAMENTO PIX:
           window.location.href = `pagamento.html?orderId=${data.orderId}&amount=${data.totalAmount}&nome=${encodeURIComponent(document.getElementById('nome').value)}&cpf=${encodeURIComponent(document.getElementById('cpf').value)}&copiaECola=${encodeURIComponent(data.qrCodeCopiaECola || data.orderId)}`;
         } else {
           alert('Erro: ' + (data.error || 'Falha ao gerar cobrança'));
@@ -179,7 +179,6 @@
         btn.innerText = "GERAR PIX PARA PAGAMENTO";
       }
     }
-
     carregarLotesDisponiveis();
   </script>
 </body>
