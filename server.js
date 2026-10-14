@@ -2,6 +2,7 @@ require('dotenv').config();
 const express = require('express');
 const http = require('http');
 const path = require('path');
+const pool = require('./config/database');
 const { initSocket } = require('./services/socketService');
 const { handleCheckout } = require('./controllers/checkoutController');
 const { handlePaymentWebhook } = require('./controllers/webhookController');
@@ -10,16 +11,32 @@ const { createEvent, createBatch, updateBatch, deleteBatch, deleteEvent, getAdmi
 const app = express();
 app.use(express.json());
 
+// Garante que o Render encontra a pasta public, esteja em src/public ou na raiz public
 app.use(express.static(path.join(__dirname, 'public')));
+app.use(express.static(path.join(__dirname, '../public')));
 
 const server = http.createServer(app);
 initSocket(server);
 
-// Rotas da API de Checkout e Pagamentos
+// Rotas da API Checkout e Webhook
 app.post('/api/checkout', handleCheckout);
 app.post('/api/webhooks/payment', handlePaymentWebhook);
 
-// Rotas da API do Administrador
+// Rota para verificar status do pedido na tela de pagamento
+app.get('/api/orders/:id', async (req, res) => {
+  try {
+    const result = await pool.query('SELECT status FROM orders WHERE id = $1', [req.params.id]);
+    if (result.rows.length > 0) {
+      res.json(result.rows[0]);
+    } else {
+      res.status(404).json({ error: 'Pedido não encontrado' });
+    }
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// Rotas do Painel Admin
 app.get('/api/admin/metrics', getAdminMetrics);
 app.post('/api/admin/events', createEvent);
 app.delete('/api/admin/events/:id', deleteEvent);
@@ -29,7 +46,5 @@ app.delete('/api/admin/batches/:id', deleteBatch);
 
 const PORT = process.env.PORT || 3000;
 server.listen(PORT, () => {
-  console.log(`🚀 Servidor rodando na porta ${PORT} com suporte a WebSockets`);
-  console.log(`🌐 Acesse o site em: http://localhost:${PORT}`);
-  console.log(`🛡️ Acesse o painel admin em: http://localhost:${PORT}/admin.html`);
+  console.log(`🚀 Servidor rodando na porta ${PORT}`);
 });
